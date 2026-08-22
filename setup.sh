@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PCFI Backend setup script
+# PCFL Backend setup script
 # Installs sqlx-cli, creates the database, runs migrations, and prepares
 # offline SQLx query cache so `cargo build` works without a live DB later.
 

@@ -1,5 +1,5 @@
 # --- Build stage ---
-FROM rust:1.79-slim-bookworm AS builder
+FROM rust:1.85-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Cache dependencies
-COPY Cargo.toml Cargo.lock* ./
+COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release || true
-RUN rm -rf src
+RUN cargo build --release
+RUN rm -f target/release/deps/pcfl_backend* target/release/pcfl-backend
 
-# Build actual source
+# Build actual application
 COPY . .
 RUN cargo build --release
 
@@ -29,9 +29,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/pcfi-backend /app/pcfi-backend
+COPY --from=builder /app/target/release/pcfl-backend /app/pcfl-backend
 COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 8080
 
-CMD ["/app/pcfi-backend"]
+CMD ["/app/pcfl-backend"]
