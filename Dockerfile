@@ -1,5 +1,5 @@
 # --- Build stage ---
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:latest AS builder
 
 WORKDIR /app
 
@@ -11,12 +11,12 @@ RUN apt-get update && apt-get install -y \
 # Cache dependencies
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
+RUN cargo build --release --locked
 RUN rm -f target/release/deps/pcfl_backend* target/release/pcfl-backend
 
 # Build actual application
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --locked
 
 # --- Runtime stage ---
 FROM debian:bookworm-slim
