@@ -7,8 +7,9 @@ use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{middleware::Logger, web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use std::env;
+use std::str::FromStr;
 use std::time::Duration;
 
 use handlers::{
@@ -41,22 +42,32 @@ async fn main() -> std::io::Result<()> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL environment variable is missing");
     let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET environment variable is missing");
     
+    if jwt_secret.len() < 32 {
+        panic!("JWT_SECRET must be at least 32 characters long for security");
+    }
+
     // Canonical public URL used to build absolute media links for the frontend
     let public_api_url = env::var("PUBLIC_API_URL")
-        .unwrap_or_else(|_| "https://backend.progressivedairyagro.com".to_string());
+        .unwrap_or_else(|_| "https://backend.progressivecattlefodderindustries.com".to_string());
 
     let allowed_origins: Vec<String> = env::var("ALLOWED_ORIGINS")
-        .unwrap_or_else(|_| "http://localhost:3000,http://localhost:3001,https://progressivedairyagro.com".to_string())
+        .unwrap_or_else(|_| "http://localhost:3000,http://localhost:3001,https://progressivecattlefodderindustries.com".to_string())
         .split(',')
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
 
     log::info!("Connecting to PostgreSQL database...");
+
+    // Set statement_cache_capacity(0) to fix "prepared statement does not exist" errors
+    let connect_options = PgConnectOptions::from_str(&database_url)
+        .expect("Invalid DATABASE_URL format")
+        .statement_cache_capacity(0);
+
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(Duration::from_secs(5))
-        .connect(&database_url)
+        .connect_with(connect_options)
         .await
         .expect("Failed to connect to PostgreSQL");
 

@@ -71,21 +71,20 @@ pub async fn get_media_by_id(
 ) -> impl Responder {
     let media_id = id.into_inner();
 
-    let record = sqlx::query_as!(
-        Media,
+    let record = sqlx::query_as::<_, Media>(
         r#"
         SELECT 
             id, 
-            file_name as "file_name!", 
-            file_type as "file_type!", 
-            file_data as "file_data!", 
-            CONCAT('/api/media/', id::text) as "file_url!",
-            created_at as "created_at!"
+            file_name, 
+            file_type, 
+            file_data, 
+            CONCAT('/api/media/', id::text) AS file_url,
+            created_at
         FROM media 
         WHERE id = $1
         "#,
-        media_id
     )
+    .bind(media_id)
     .fetch_optional(pool.get_ref())
     .await;
 

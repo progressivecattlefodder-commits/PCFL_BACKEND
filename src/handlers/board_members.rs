@@ -11,7 +11,7 @@ fn is_super_admin(claims: &Claims) -> bool {
     claims.role == "superadmin"
 }
 
-pub async fn list_public(pool: web::Data<PgPool> ) -> HttpResponse {
+pub async fn list_public(pool: web::Data<PgPool>) -> HttpResponse {
     let members = sqlx::query_as!(
         BoardMember,
         r#"SELECT id, full_name, title, bio, image_url, sort_order, is_published,
@@ -26,7 +26,7 @@ pub async fn list_public(pool: web::Data<PgPool> ) -> HttpResponse {
         Err(e) => {
             log::error!("Error fetching board members: {}", e);
             HttpResponse::InternalServerError()
-            .json(ApiError::new("Failed to fetch board members"))
+                .json(ApiError::new("Failed to fetch board members"))
         }
     }
 }
@@ -59,7 +59,7 @@ pub async fn create(
 ) -> HttpResponse {
     let (is_super, sub) = {
         let ext = req.extensions();
-        match ext.get::<Claims>(){
+        match ext.get::<Claims>() {
             Some(c) => (is_super_admin(c), c.sub.clone()),
             None => return HttpResponse::Unauthorized().json(ApiError::new("Unauthorized")),
         }
@@ -78,7 +78,7 @@ pub async fn create(
     let member = sqlx::query_as!(
         BoardMember,
         r#"INSERT INTO board_members (full_name, title, bio, image_url, sort_order, is_published,
-        created_by) VALUES ( $1, $2, $3, $4, $5, $6, $7) RETURNING id, full_name, title, bio,
+        created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, full_name, title, bio,
         image_url, sort_order, is_published, created_at, updated_at, created_by"#,
         body.full_name,
         body.title,
@@ -98,9 +98,8 @@ pub async fn create(
         Err(e) => {
             log::error!("Error creating board member: {}", e);
             HttpResponse::InternalServerError()
-            .json(ApiError::new("Failed to create board member"))
-
-    }
+                .json(ApiError::new("Failed to create board member"))
+        }
     }
 }
 
@@ -155,19 +154,19 @@ pub async fn update(
         Err(e) => {
             log::error!("Error updating board member: {}", e);
             HttpResponse::InternalServerError()
-            .json(ApiError::new("Failed to upload board member"))
+                .json(ApiError::new("Failed to update board member"))
         }
     }   
 }
 
-pub async fn delete (
+pub async fn delete(
     req: HttpRequest,
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
 ) -> HttpResponse {
-    let is_super ={
+    let is_super = {
         let ext = req.extensions();
-        match ext.get::<Claims>(){
+        match ext.get::<Claims>() {
             Some(c) => is_super_admin(c),
             None => return HttpResponse::Unauthorized().json(ApiError::new("Unauthorized")),
         }
@@ -175,7 +174,7 @@ pub async fn delete (
 
     if !is_super {
         return HttpResponse::Forbidden()
-         .json(ApiError::new("Only super admin can manage board members"));
+            .json(ApiError::new("Only super admin can manage board members"));
     }
 
     let id = path.into_inner();
@@ -189,11 +188,11 @@ pub async fn delete (
     match result {
         Ok(Some(_)) => HttpResponse::Ok()
             .json(ApiResponse::success(serde_json::json!({"message":"Board member deleted"}))),
-            Ok(None) => HttpResponse::NotFound().json(ApiError::new("Board member not found")),
-            Err(e) => {
-                log::error!("Error deleting board member: {}", e);
-                HttpResponse::InternalServerError()
+        Ok(None) => HttpResponse::NotFound().json(ApiError::new("Board member not found")),
+        Err(e) => {
+            log::error!("Error deleting board member: {}", e);
+            HttpResponse::InternalServerError()
                 .json(ApiError::new("Failed to delete board member"))
-            }
+        }
     }
 }
