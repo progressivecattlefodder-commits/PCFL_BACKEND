@@ -41,12 +41,11 @@ async fn main() -> std::io::Result<()> {
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL environment variable is missing");
     let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET environment variable is missing");
-    
+
     if jwt_secret.len() < 32 {
         panic!("JWT_SECRET must be at least 32 characters long for security");
     }
 
-    // Canonical public URL used to build absolute media links for the frontend
     let public_api_url = env::var("PUBLIC_API_URL")
         .unwrap_or_else(|_| "https://backend.progressivecattlefodderindustries.com".to_string());
 
@@ -59,7 +58,6 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Connecting to PostgreSQL database...");
 
-    // Set statement_cache_capacity(0) to fix "prepared statement does not exist" errors
     let connect_options = PgConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL format")
         .statement_cache_capacity(0);
@@ -111,11 +109,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::JsonConfig::default().limit(10 * 1024 * 1024))
             .wrap(cors)
             .wrap(Logger::default())
-            // Root endpoints
             .route("/", web::get().to(|| async { HttpResponse::Ok().body("Server is operational") }))
             .route("/", web::head().to(|| async { HttpResponse::Ok().finish() }))
             .route("/health", web::get().to(health_check))
-            // Media serving endpoint (Public)
             .route("/api/media/{id}", web::get().to(upload::get_media_by_id))
             .service(
                 web::scope("/api/auth")
