@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM gallery_items",
+  "query": "SELECT COUNT(*) as \"count!\" FROM gallery_items",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "count",
+        "name": "count!",
         "type_info": "Int8"
       }
     ],
@@ -16,5 +16,5 @@
       null
     ]
   },
-  "hash": "211c0b86d86e6f501864f1939d4fc67093f37dd005ccd6a4b0e078c7198083ea"
+  "hash": "e556edf123bb57fb7db6d74b57f8816e0114e6c93b7ce1dd0cf981b0b4c6387e"
 }

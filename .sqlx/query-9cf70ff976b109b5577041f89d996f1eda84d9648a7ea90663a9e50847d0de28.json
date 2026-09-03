@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM users WHERE is_active = true",
+  "query": "SELECT COUNT(*) as \"count!\" FROM products WHERE is_published = true",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "count",
+        "name": "count!",
         "type_info": "Int8"
       }
     ],
@@ -16,5 +16,5 @@
       null
     ]
   },
-  "hash": "24cd9b18029ef31cf712c1d9861de9497a98e743a26e0ddd36e470961d0b556a"
+  "hash": "9cf70ff976b109b5577041f89d996f1eda84d9648a7ea90663a9e50847d0de28"
 }
