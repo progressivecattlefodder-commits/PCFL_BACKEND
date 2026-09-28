@@ -3,6 +3,9 @@ FROM rust:latest AS builder
 
 WORKDIR /app
 
+# Enable SQLx offline mode for Docker builds
+ENV SQLX_OFFLINE=true
+
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -14,7 +17,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release --locked
 RUN rm -f target/release/deps/pcfl_backend* target/release/pcfl-backend
 
-# Build actual application
+# Copy source code AND sqlx-data.json into image
 COPY . .
 RUN cargo build --release --locked
 
