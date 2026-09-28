@@ -4,7 +4,7 @@ use futures::TryStreamExt;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::Media;
+use crate::models::{ApiError, ApiResponse, Media, UploadResponse};
 
 pub async fn upload_image(
     pool: web::Data<PgPool>,
@@ -13,7 +13,7 @@ pub async fn upload_image(
 ) -> impl Responder {
     let mut file_data = Vec::new();
     let mut file_name = String::from("upload.bin");
-    let mut file_type = String::from("application/octet-stream");
+    let mut file_type = String::from("image/jpeg");
 
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
@@ -34,11 +34,12 @@ pub async fn upload_image(
     }
 
     if file_data.is_empty() {
-        return HttpResponse::BadRequest().json("No file uploaded or file empty");
+        return HttpResponse::BadRequest().json(ApiError::new("No file uploaded or file is empty"));
     }
 
     let media_id = Uuid::new_v4();
-    let full_image_url = format!("{}/api/media/{}", public_api_url.get_ref(), media_id);
+    let base_url = public_api_url.get_ref().trim_end_matches('/');
+    let full_image_url = format!("{}/api/media/{}", base_url, media_id);
 
     let result = sqlx::query!(
         r#"
@@ -54,37 +55,33 @@ pub async fn upload_image(
     .await;
 
     match result {
-        Ok(_) => HttpResponse::Ok().json(serde_json::json!({
-            "id": media_id,
-            "url": full_image_url
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(UploadResponse {
+            success: true,
+            id: media_id,
+            url: full_image_url,
         })),
         Err(e) => {
-            log::error!("Database insert error: {:?}", e);
-            HttpResponse::InternalServerError().json("Failed to store image")
+            log::error!("Database error inserting media: {:?}", e);
+            HttpResponse::InternalServerError().json(ApiError::new("Failed to store image in database"))
         }
     }
 }
 
 pub async fn get_media_by_id(
     pool: web::Data<PgPool>,
-    id: web::Path<Uuid>,
+    path: web::Path<Uuid>,
 ) -> impl Responder {
-    let media_id = id.into_inner();
+    let media_id = path.into_inner();
 
-    let record = sqlx::query_as::<_, Media>(
+    let record = sqlx::query_as!(
+        Media,
         r#"
-        SELECT 
-            id, 
-            file_name, 
-            file_type, 
-            file_data, 
-            CONCAT('/api/media/', id::text) AS file_url,
-            created_at
+        SELECT id, file_name, file_type, file_data, created_at
         FROM media 
         WHERE id = $1
         "#,
+        media_id
     )
-    .bind(media_id)
     .fetch_optional(pool.get_ref())
     .await;
 
@@ -93,10 +90,10 @@ pub async fn get_media_by_id(
             .content_type(media.file_type)
             .append_header(("Cache-Control", "public, max-age=31536000, immutable"))
             .body(media.file_data),
-        Ok(None) => HttpResponse::NotFound().json("Media not found"),
+        Ok(None) => HttpResponse::NotFound().json(ApiError::new("Media item not found")),
         Err(e) => {
-            log::error!("Database query error: {:?}", e);
-            HttpResponse::InternalServerError().json("Database error")
+            log::error!("Database query error fetching media: {:?}", e);
+            HttpResponse::InternalServerError().json(ApiError::new("Database query error"))
         }
     }
 }

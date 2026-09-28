@@ -3,12 +3,12 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::{
-    ApiError, ApiResponse, Claims, CreateGalleryItemRequest, UpdateGalleryItemRequest,
+    ApiError, ApiResponse, Claims, CreateGalleryItemRequest, GalleryItem, UpdateGalleryItemRequest,
 };
 
 pub async fn list_gallery_public(pool: web::Data<PgPool>) -> HttpResponse {
     let items = sqlx::query_as!(
-        crate::models::GalleryItem,
+        GalleryItem,
         r#"
         SELECT id, title, description, image_url, category, sort_order, is_published, created_at, updated_at, created_by
         FROM gallery_items
@@ -22,7 +22,7 @@ pub async fn list_gallery_public(pool: web::Data<PgPool>) -> HttpResponse {
     match items {
         Ok(items) => HttpResponse::Ok().json(ApiResponse::success(items)),
         Err(e) => {
-            log::error!("Error fetching gallery: {}", e);
+            log::error!("Error fetching public gallery: {:?}", e);
             HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch gallery"))
         }
     }
@@ -30,7 +30,7 @@ pub async fn list_gallery_public(pool: web::Data<PgPool>) -> HttpResponse {
 
 pub async fn list_gallery(pool: web::Data<PgPool>) -> HttpResponse {
     let items = sqlx::query_as!(
-        crate::models::GalleryItem,
+        GalleryItem,
         r#"
         SELECT id, title, description, image_url, category, sort_order, is_published, created_at, updated_at, created_by
         FROM gallery_items
@@ -43,7 +43,7 @@ pub async fn list_gallery(pool: web::Data<PgPool>) -> HttpResponse {
     match items {
         Ok(items) => HttpResponse::Ok().json(ApiResponse::success(items)),
         Err(e) => {
-            log::error!("Error fetching gallery: {}", e);
+            log::error!("Error fetching admin gallery: {:?}", e);
             HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch gallery"))
         }
     }
@@ -62,11 +62,34 @@ pub async fn create_gallery_item(
 
     let user_id = match user_id {
         Some(id) => id,
-        None => return HttpResponse::Unauthorized().json(ApiError::new("Unauthorized")),
+        None => return HttpResponse::Unauthorized().json(ApiError::new("Unauthorized: Invalid user ID claim")),
     };
 
+    // Verify foreign key integrity against users table
+    let user_exists = sqlx::query!(
+        "SELECT id FROM users WHERE id = $1",
+        user_id
+    )
+    .fetch_optional(pool.get_ref())
+    .await;
+
+    match user_exists {
+        Ok(None) => {
+            log::error!("Foreign key error: User ID {} does not exist in users table", user_id);
+            return HttpResponse::BadRequest().json(ApiError::new("Authenticated user does not exist in database"));
+        }
+        Err(e) => {
+            log::error!("Database verification error: {:?}", e);
+            return HttpResponse::InternalServerError().json(ApiError::new("Database verification error"));
+        }
+        Ok(Some(_)) => {}
+    }
+
+    let sort_order = body.sort_order.unwrap_or(0);
+    let is_published = body.is_published.unwrap_or(true);
+
     let item = sqlx::query_as!(
-        crate::models::GalleryItem,
+        GalleryItem,
         r#"
         INSERT INTO gallery_items (title, description, image_url, category, sort_order, is_published, created_by)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -76,20 +99,18 @@ pub async fn create_gallery_item(
         body.description,
         body.image_url,
         body.category,
-        body.sort_order.unwrap_or(0),
-        body.is_published.unwrap_or(true),
+        sort_order,
+        is_published,
         user_id
     )
     .fetch_one(pool.get_ref())
     .await;
 
     match item {
-        Ok(item) => HttpResponse::Created()
-            .json(ApiResponse::success_message(item, "Gallery item created")),
+        Ok(item) => HttpResponse::Created().json(ApiResponse::success_message(item, "Gallery item created")),
         Err(e) => {
-            log::error!("Error creating gallery item: {}", e);
-            HttpResponse::InternalServerError()
-                .json(ApiError::new("Failed to create gallery item"))
+            log::error!("Error creating gallery item: {:?}", e);
+            HttpResponse::InternalServerError().json(ApiError::new("Failed to create gallery item"))
         }
     }
 }
@@ -102,7 +123,7 @@ pub async fn update_gallery_item(
     let id = path.into_inner();
 
     let item = sqlx::query_as!(
-        crate::models::GalleryItem,
+        GalleryItem,
         r#"
         UPDATE gallery_items SET
             title = COALESCE($1, title),
@@ -127,13 +148,11 @@ pub async fn update_gallery_item(
     .await;
 
     match item {
-        Ok(Some(item)) => HttpResponse::Ok()
-            .json(ApiResponse::success_message(item, "Gallery item updated")),
+        Ok(Some(item)) => HttpResponse::Ok().json(ApiResponse::success_message(item, "Gallery item updated")),
         Ok(None) => HttpResponse::NotFound().json(ApiError::new("Gallery item not found")),
         Err(e) => {
-            log::error!("Error updating gallery item: {}", e);
-            HttpResponse::InternalServerError()
-                .json(ApiError::new("Failed to update gallery item"))
+            log::error!("Error updating gallery item: {:?}", e);
+            HttpResponse::InternalServerError().json(ApiError::new("Failed to update gallery item"))
         }
     }
 }
@@ -152,13 +171,11 @@ pub async fn delete_gallery_item(
     .await;
 
     match result {
-        Ok(Some(_)) => HttpResponse::Ok()
-            .json(ApiResponse::success(serde_json::json!({"message": "Gallery item deleted"}))),
+        Ok(Some(_)) => HttpResponse::Ok().json(ApiResponse::success_message(serde_json::json!({}), "Gallery item deleted")),
         Ok(None) => HttpResponse::NotFound().json(ApiError::new("Gallery item not found")),
         Err(e) => {
-            log::error!("Error deleting gallery item: {}", e);
-            HttpResponse::InternalServerError()
-                .json(ApiError::new("Failed to delete gallery item"))
+            log::error!("Error deleting gallery item: {:?}", e);
+            HttpResponse::InternalServerError().json(ApiError::new("Failed to delete gallery item"))
         }
     }
 }

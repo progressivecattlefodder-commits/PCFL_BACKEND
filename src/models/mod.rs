@@ -87,7 +87,6 @@ pub struct BoardMember {
     pub created_by: Uuid,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct CreateBoardMemberRequest {
     pub full_name: String,
@@ -107,7 +106,6 @@ pub struct UpdateBoardMemberRequest {
     pub sort_order: Option<i32>,
     pub is_published: Option<bool>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Product {
@@ -168,7 +166,7 @@ pub struct HeroSection {
     pub updated_at: DateTime<Utc>,
 }
 
-
+// Media matches Neon's media table exact columns
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Media {
     pub id: Uuid,
@@ -176,7 +174,6 @@ pub struct Media {
     pub file_type: String,
     #[serde(skip_serializing)]
     pub file_data: Vec<u8>,
-    pub file_url: String,
     pub created_at: DateTime<Utc>,
 }
 
