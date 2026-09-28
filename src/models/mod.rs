@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+// Wrapper types to prevent web::Data<String> type collisions in Actix state
+#[derive(Clone, Debug)]
+pub struct JwtSecret(pub String);
+
+#[derive(Clone, Debug)]
+pub struct PublicApiUrl(pub String);
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -174,7 +181,7 @@ pub struct Media {
     pub file_type: String,
     #[serde(skip_serializing)]
     pub file_data: Vec<u8>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]
