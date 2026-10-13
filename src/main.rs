@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     let public_api_url = env::var("PUBLIC_API_URL")
-        .unwrap_or_else(|_| "https://backend.progressivecattlefodderindustries.com".to_string());
+        .unwrap_or_else(|_| "https://pcfl-backend.onrender.com".to_string());
 
     let allowed_origins: Vec<String> = env::var("ALLOWED_ORIGINS")
         .unwrap_or_else(|_| "http://localhost:3000,http://localhost:3001,https://progressivecattlefodderindustries.com".to_string())
