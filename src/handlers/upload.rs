@@ -89,6 +89,7 @@ pub async fn get_media_by_id(
         Ok(Some(media)) => HttpResponse::Ok()
             .content_type(media.file_type)
             .append_header(("Cache-Control", "public, max-age=31536000, immutable"))
+            .append_header(("Access-Control-Allow-Origin", "*")) // <-- Added CORS header to allow cross-subdomain loading
             .body(media.file_data),
         Ok(None) => HttpResponse::NotFound().json(ApiError::new("Media item not found")),
         Err(e) => {
