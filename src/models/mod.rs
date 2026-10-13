@@ -136,7 +136,7 @@ pub struct GalleryItem {
     pub id: Uuid,
     pub title: String,
     pub description: Option<String>,
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub category: Option<String>,
     pub sort_order: i32,
     pub is_published: bool,
